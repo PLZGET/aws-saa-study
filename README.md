@@ -7,7 +7,8 @@ AWS 서비스별 핵심 개념을 학습하고, 실전형 시나리오 문제를
 문제 풀이부터 오답 분석, 학습 기록 관리, 실전 모의고사까지 하나의 웹사이트에서 이용할 수 있습니다.
 
 ### [AWS SAA Study OS 바로가기](https://plzget.github.io/aws-saa-study/index.html)
-![Uploading image.png…]()
+<img width="1828" height="909" alt="image" src="https://github.com/user-attachments/assets/8d0f4f86-611d-455e-b031-af66cd86ee0a" />
+
 
 ---
 
