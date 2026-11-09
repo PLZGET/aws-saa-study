@@ -1,0 +1,1614 @@
+[
+  {
+    "id": "D01Q1",
+    "date": "2026-11-09",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "중",
+    "stem": "회사 A의 EC2 애플리케이션이 회사 B 계정의 S3 버킷에 있는 보고서를 읽어야 한다. 장기 액세스 키를 발급하거나 코드에 비밀 값을 저장할 수 없다. 가장 적절한 설계는?",
+    "options": [
+      "B 버킷을 인터넷에 공개하고 IP만 제한한다",
+      "B 계정의 IAM 사용자를 만들고 액세스 키를 A의 EC2 환경 변수에 저장한다",
+      "A 계정의 루트 사용자 키로 B 계정 S3에 접근한다",
+      "B 계정에 신뢰 정책이 있는 IAM 역할을 만들고 A의 EC2 역할에서 STS AssumeRole로 임시 자격 증명을 얻는다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "교차 계정 IAM 역할 수임(AssumeRole)으로 단기 자격 증명을 발급받는다. B의 신뢰 정책이 A의 호출 주체를 신뢰하고, 필요한 S3 접근 권한도 허용해야 한다.",
+    "why": [
+      "공개 버킷은 인증된 교차 계정 접근 요구와 다르다",
+      "장기 키의 보관과 교체 부담이 남는다",
+      "루트 키는 애플리케이션 접근 수단이 아니다",
+      "신뢰 관계와 권한을 분리하여 최소 권한으로 접근한다"
+    ],
+    "criterion": "교차 계정 + 장기 키 금지 → STS AssumeRole",
+    "trap": "역할의 신뢰 정책(누가 수임)과 권한 정책(수임 후 무엇을 할 수 있는지)을 구분한다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D01Q2",
+    "date": "2026-11-09",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "주문 처리 API가 주문 이벤트를 작업 큐에 보낸다. 소비자가 가끔 장애를 겪고 일시적으로 동일 메시지를 두 번 받을 수 있다. 처리량이 높고, 전역 순서는 필요 없다. 가장 적절한 기본 설계는?",
+    "options": [
+      "SQS Standard 큐와 멱등성 있는 소비자를 사용한다",
+      "CloudFront로 이벤트를 캐싱해 중복을 없앤다",
+      "SQS FIFO만 사용하고 애플리케이션 멱등성 검사를 제거한다",
+      "SNS 단독 구독 후 메시지는 반드시 한 번만 온다고 가정한다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "SQS Standard는 고처리량과 최소 한 번 전달(at-least-once)에 적합하다. 중복 전달 가능성을 고려해 주문 ID 기반 멱등성으로 처리한다.",
+    "why": [
+      "요구 조건(순서 불필요, 높은 처리량)에 적합하다",
+      "CDN 캐시는 메시지 큐의 중복 처리 수단이 아니다",
+      "FIFO도 소비 측 재시도 및 중복 부작용을 별도로 고려해야 한다",
+      "SNS는 팬아웃용 발행/구독이며 소비 작업의 내구성 있는 큐를 대체하지 않는다"
+    ],
+    "criterion": "순서 중요 → FIFO, 순서 불필요·고처리량 → Standard + 멱등 처리",
+    "trap": "SQS Standard의 at-least-once와 FIFO의 중복 제거 기능을 \"DB 작업도 정확히 한 번\"으로 혼동하지 않는다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D01Q3",
+    "date": "2026-11-09",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "상",
+    "stem": "회사 서비스는 장애 시 데이터 유실을 최대 5분으로 제한(RPO ≤5분)하고, 15분 내 서비스를 재개(RTO ≤15분)해야 한다. 리전 장애까지 대비하면서 비용은 가능한 줄이고 싶다. 가장 합리적인 접근은?",
+    "options": [
+      "보조 리전에 축소된 운영 환경과 충분히 짧은 복제 지연을 갖춘 웜 스탠바이를 구축하고 전환 훈련으로 목표 충족을 검증한다",
+      "매일 한 번 백업하는 백업·복구만 사용한다",
+      "보조 리전에 최소 핵심만 남기고 장애 후 모든 애플리케이션을 새로 설치하는 파일럿 라이트를 검증 없이 선택한다",
+      "온프레미스 PC에 로그를 매일 다운로드한다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "웜 스탠바이는 축소된 서비스를 상시 가동해 복구 시간을 줄인다. RPO는 실제 복제 지연, RTO는 확장 및 트래픽 전환 시간을 포함해 실측 검증해야 한다.",
+    "why": [
+      "복제와 전환을 설계하고 측정하는 접근이다",
+      "일간 백업은 최대 24시간 수준의 데이터 유실을 허용할 수 있다",
+      "파일럿 라이트는 재가동·확장에 시간이 들고 목표 충족이 보장되지 않는다",
+      "로컬 수동 백업은 리전 DR과 RPO 요구를 충족하기 어렵다"
+    ],
+    "criterion": "RPO=데이터 손실 한도, RTO=서비스 복구 소요 시간",
+    "trap": "DR 방식 이름만으로 RTO/RPO를 보장하지 않는다. 복제·자동화·훈련 수치를 확인한다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D02Q1",
+    "date": "2026-11-10",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "중",
+    "stem": "서로 다른 가용 영역에 있는 Linux EC2 6대가 동일한 업로드 디렉터리를 동시에 읽고 쓰며 POSIX 파일 경로를 이용해야 한다. 파일시스템 관리 부담을 최소화하려면?",
+    "options": [
+      "S3 객체를 모든 EC2에 기본 로컬 파일시스템처럼 마운트한다",
+      "각 EC2에 개별 EBS 볼륨을 붙이고 파일이 자동 동기화되리라 기대한다",
+      "Amazon EFS 파일시스템을 생성하고 적절한 AZ의 마운트 타깃을 사용한다",
+      "EC2 Instance Store에만 데이터를 둔다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "EFS는 NFS 기반 관리형 공유 파일시스템으로 여러 Linux EC2에서 동시 접근할 수 있다. 가용 영역별 마운트 타깃과 네트워크 보안 설정을 고려한다.",
+    "why": [
+      "S3는 객체 스토리지이며 일반 POSIX 공유 디스크와 의미가 다르다",
+      "독립된 EBS 볼륨 간 파일은 자동 공유되지 않는다",
+      "멀티 AZ의 공유 파일 경로 요구에 부합한다",
+      "인스턴스 스토어는 인스턴스 수명에 종속되는 임시 스토리지다"
+    ],
+    "criterion": "블록·단일 인스턴스 중심 → EBS, 여러 Linux 인스턴스의 공유 파일 → EFS",
+    "trap": "EFS와 EBS는 모두 파일이 저장되지만 접근 프로토콜 및 공유 방식이 다르다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D02Q2",
+    "date": "2026-11-10",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "중",
+    "stem": "전 세계 이용자에게 사진을 빠르게 제공한다. 원본 S3 버킷은 외부에 공개하지 않고 CloudFront를 통해서만 읽게 해야 한다. 권장 설계는?",
+    "options": [
+      "S3 일반 버킷 오리진에 CloudFront OAC를 구성하고, 버킷 정책에서 해당 배포의 접근을 허용한다",
+      "EC2 프록시를 두고 S3 공개 읽기를 유지한다",
+      "모든 객체를 퍼블릭 읽기로 만들고 CloudFront에서만 링크를 안내한다",
+      "S3 정적 웹사이트 엔드포인트를 공개하고 CloudFront OAC를 활성화한다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "CloudFront OAC는 일반 S3 버킷 오리진에 서명된 요청을 보낸다. 버킷은 비공개로 유지하고 배포의 접근을 허용한다.",
+    "why": [
+      "원본 보호와 엣지 캐싱을 함께 달성한다",
+      "불필요한 서버 운영과 공개 원본 위험이 남는다",
+      "URL 비공개와 객체 권한 보호는 다르다",
+      "S3 웹사이트 엔드포인트는 CloudFront의 사용자 지정 오리진이며 OAC를 사용할 수 없다"
+    ],
+    "criterion": "프라이빗 S3 원본 → 일반 S3 오리진 + OAC",
+    "trap": "S3 웹사이트 엔드포인트와 S3 REST 오리진은 CloudFront에서 동일하지 않다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D02Q3",
+    "date": "2026-11-10",
+    "topic": "Serverless",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "이미지 업로드 이벤트가 갑자기 20배 증가해 처리 Lambda가 다운스트림 DB 연결 제한에 걸린다. 업로드 이벤트를 잃지 않고 소비 속도를 조절해야 한다. 적절한 방식은?",
+    "options": [
+      "S3 버킷을 EC2 인스턴스 스토어로 바꾼다",
+      "S3 이벤트를 SQS로 보내 Lambda 이벤트 소스 매핑으로 처리하고 동시성을 제한한다",
+      "CloudFront TTL을 0으로 만든다",
+      "모든 업로드에서 Lambda를 무제한 동시 실행하고 DB를 기다린다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "SQS가 버퍼 역할을 하며 Lambda 이벤트 소스 매핑과 동시성 제어로 소비 속도를 관리한다. 실패 재시도와 DLQ도 설계한다.",
+    "why": [
+      "이벤트 처리량 제어와 스토리지 유형은 별개의 문제다",
+      "버퍼링과 소비자 백프레셔 요구를 만족한다",
+      "CDN 캐시 설정은 비동기 작업 속도를 제한하지 않는다",
+      "무제한 병렬 처리는 DB 과부하를 키운다"
+    ],
+    "criterion": "버스트 흡수 + 소비량 제한 → SQS + Lambda",
+    "trap": "Lambda를 쓴다는 사실만으로 다운스트림 과부하가 해결되지는 않는다.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "Serverless",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D03Q1",
+    "date": "2026-11-11",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "중",
+    "stem": "개발자에게 IAM 역할과 정책을 직접 생성할 권한을 주되, 생성한 역할이 특정 범위 이상의 권한을 절대 갖지 못하게 해야 한다. 무엇이 가장 직접적인 통제인가?",
+    "options": [
+      "IAM 정책을 S3 객체 태그로 관리한다",
+      "모든 사용자에게 AdministratorAccess를 준다",
+      "새 역할에 Permissions boundary를 적용하도록 강제한다",
+      "CloudTrail 로그만 활성화한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "Permissions boundary는 IAM 사용자 또는 역할의 유효 최대 권한을 제한한다. 실제 허용에는 해당 주체의 정책과 다른 평가 요소의 허용도 필요하다.",
+    "why": [
+      "S3 객체 태그는 IAM 역할 최대 권한 제어가 아니다",
+      "상한이 아니라 과도한 권한을 부여한다",
+      "역할별 최대 권한 상한을 정하는 장치다",
+      "CloudTrail은 감사 수단이지 권한 상한이 아니다"
+    ],
+    "criterion": "주체별 최대 권한 제한 → Permissions boundary, 조직 계정 전체 가드레일 → SCP",
+    "trap": "Permissions boundary는 권한을 부여하지 않고 상한만 정한다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D03Q2",
+    "date": "2026-11-11",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "결제 승인 이벤트는 반드시 같은 고객 ID 안에서 생성된 순서대로 처리해야 한다. 생산자가 네트워크 오류로 동일 요청을 재시도할 수 있다. 적절한 SQS 설정은?",
+    "options": [
+      "FIFO 큐와 고객 ID별 MessageGroupId, 중복 제거 ID를 사용한다",
+      "CloudWatch Logs에 메시지를 저장한 뒤 순서대로 폴링한다",
+      "Standard 큐를 사용하고 전역 순서를 가정한다",
+      "SNS 주제만 만들고 순서를 보장한다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "FIFO 큐의 MessageGroupId 단위로 순서를 관리한다. MessageDeduplicationId 또는 내용 기반 중복 제거를 이용한다. 중복 제거는 해당 보장 범위 내에서 동작한다.",
+    "why": [
+      "같은 고객 내 순서와 재전송 중복 제어에 적합하다",
+      "로그는 소비 작업 큐를 대신하지 않는다",
+      "Standard 큐는 엄격한 순서 보장이 없다",
+      "SNS 단독은 대기열 순서 처리의 정답이 아니다"
+    ],
+    "criterion": "고객별 순서 → 고객 ID별 FIFO 메시지 그룹",
+    "trap": "FIFO의 중복 제거 기간(일반적으로 5분)과 소비자 멱등성은 별도 개념이다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D03Q3",
+    "date": "2026-11-11",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "회사는 비용을 최소화하는 재해 복구 전략을 원한다. 중요 데이터는 보조 리전에 복제하지만 애플리케이션 서버는 평소 실행하지 않아도 되고, 복구에 수십 분 이상 소요돼도 된다. 가장 가까운 전략은?",
+    "options": [
+      "웜 스탠바이",
+      "멀티사이트 액티브-액티브",
+      "모든 서비스의 동일 리전 배치",
+      "파일럿 라이트"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "파일럿 라이트는 핵심 데이터와 최소 필수 구성 요소를 유지하고 장애 시 애플리케이션을 프로비저닝·확장한다. 웜 스탠바이보다 복구가 느릴 수 있지만 운영비는 적다.",
+    "why": [
+      "축소된 애플리케이션을 상시 운영한다",
+      "상시 운영하는 다중 사이트라 비용이 크다",
+      "동일 리전만으로는 리전 수준 장애에 대비할 수 없다",
+      "최소 핵심을 유지하고 장애 시 확장하는 설명이다"
+    ],
+    "criterion": "복구 속도↑ 대체로 비용↑: 백업·복구 → 파일럿 라이트 → 웜 스탠바이 → 액티브-액티브",
+    "trap": "복구 전략은 비용·서비스 상시 가동 정도·RTO가 함께 결정한다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D04Q1",
+    "date": "2026-11-12",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "중",
+    "stem": "트랜잭션 DB를 EC2와 EBS gp2에서 실행하고 있다. 용량은 그대로 두되 필요한 IOPS와 처리량을 독립적으로 조절하면서 비용도 최적화하고 싶다. 우선 고려할 변경은?",
+    "options": [
+      "EBS gp3 볼륨 사용",
+      "S3 Standard로 루트 디스크 교체",
+      "EFS로 DB 블록 장치 교체",
+      "Instance Store로 영구 데이터 모두 이전"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "gp3는 저장 용량과 IOPS·처리량을 분리해서 설정할 수 있는 범용 SSD EBS 볼륨이다. 요구 성능과 인스턴스·볼륨 한도를 함께 확인한다.",
+    "why": [
+      "용량 증가 없이 성능을 별도 구성할 수 있다",
+      "S3는 객체 스토리지로 OS 블록 디스크가 아니다",
+      "EFS는 공유 파일 시스템이지 DB 블록 장치의 기본 대안이 아니다",
+      "Instance Store는 지속성 요구를 충족하지 못할 수 있다"
+    ],
+    "criterion": "일반 SSD 블록 스토리지 성능/비용 → gp3",
+    "trap": "스토리지 변경 시 EC2 인스턴스 자체 EBS 처리량 한도도 점검한다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D04Q2",
+    "date": "2026-11-12",
+    "topic": "EC2",
+    "domain": "성능",
+    "level": "중",
+    "stem": "실패 시 체크포인트에서 재시작 가능한 4시간짜리 렌더링 배치가 있다. 가장 낮은 컴퓨팅 비용이 중요하며 중단을 견딜 수 있다. 최선의 EC2 구매 옵션은?",
+    "options": [
+      "온디맨드 인스턴스만 사용",
+      "3년 전액 선결제 예약 인스턴스를 반드시 계약",
+      "전용 호스트를 고정 구매",
+      "EC2 Spot 인스턴스와 중단 처리 로직 사용"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "Spot 인스턴스는 여유 용량을 할인된 가격으로 제공하지만 회수될 수 있다. 중단 허용 배치와 체크포인트에 잘 맞는다.",
+    "why": [
+      "안정적이지만 일반적으로 가장 저렴한 선택은 아니다",
+      "고정 장기 약정은 불규칙한 배치에 적합하지 않을 수 있다",
+      "전용 호스트는 규정·라이선스 목적에 가깝고 비용 최소화와 다르다",
+      "중단 복구가 가능한 워크로드의 비용 효율이 높다"
+    ],
+    "criterion": "중단 허용·유연한 배치 → Spot",
+    "trap": "Spot은 \"항상 실행\" 용량 보장이 아니라 중단 가능 용량이다.",
+    "source": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EC2",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D04Q3",
+    "date": "2026-11-12",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "업로드된 문서 중 월 1회 정도 열리는 파일은 장기간 보관되고, 사용자가 요청하면 밀리초 수준으로 즉시 열려야 한다. 접근 빈도가 확실하며 최소 보관 기간도 수개월이다. 적합한 클래스로 무엇을 선택할까?",
+    "options": [
+      "S3 Glacier Deep Archive",
+      "S3 Standard",
+      "S3 Standard-IA",
+      "S3 Glacier Flexible Retrieval"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "Standard-IA는 드물게 접근하지만 밀리초 접근이 필요한 데이터에 적합하다. 최소 보관 기간 및 검색 비용을 고려한다.",
+    "why": [
+      "대량 장기 보존용 아카이브로 즉시 읽기 용도가 아니다",
+      "즉시 접근은 되지만 낮은 접근 빈도에 대한 저장 비용 최적화가 덜할 수 있다",
+      "드문 접근 + 신속한 접근 요구에 적합하다",
+      "일반적으로 아카이브 복원 절차가 필요해 즉시 접근과 다르다"
+    ],
+    "criterion": "액세스 빈도 낮음 + 밀리초 조회 → Standard-IA(또는 조건에 맞는 Glacier Instant Retrieval)",
+    "trap": "Glacier 이름이 붙었다고 모두 복원 시간이 같은 것은 아니다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D05Q1",
+    "date": "2026-11-13",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "중",
+    "stem": "구독형 영상 강의를 CloudFront로 배포한다. 한 강의는 HLS 조각 파일 수백 개로 구성되며 로그인한 사용자만 일정 기간 여러 파일에 접근해야 한다. 어떤 기능이 적합한가?",
+    "options": [
+      "Route 53 지리 위치 라우팅만 사용",
+      "S3 퍼블릭 액세스 활성화",
+      "CloudFront 서명된 쿠키(Signed cookies)",
+      "각 객체의 S3 ACL을 누구나 읽기로 지정"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "CloudFront signed cookies는 한 세션에 많은 제한된 파일에 대한 접근 제어를 적용하기 편리하다. 단일 파일 단위 권한은 signed URL이 더 단순할 수 있다.",
+    "why": [
+      "DNS 라우팅은 인증·권한 제어 기능이 아니다",
+      "퍼블릭 액세스는 인증된 사용자 제한 조건과 충돌한다",
+      "여러 파일의 제한 접근에 적합하다",
+      "객체 공개는 콘텐츠 보호가 아니다"
+    ],
+    "criterion": "단일 파일 공유 → Signed URL, 여러 보호 파일 세션 접근 → Signed cookies",
+    "trap": "오리진 공개 차단(OAC)과 최종 사용자 접근 제어(signed URL/cookie)는 별개 계층이다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D05Q2",
+    "date": "2026-11-13",
+    "topic": "Serverless",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "소규모 신규 서비스에 HTTP JSON API가 필요하다. 트래픽이 하루 중 거의 없고, 서버 패치 없이 요청량에 맞춰 확장하며 키-값 데이터를 저장하고 싶다. 가장 잘 맞는 조합은?",
+    "options": [
+      "CloudFront + EBS + Auto Scaling만 사용",
+      "EC2 전용 호스트 + RDS에 항상 고정 서버 운영",
+      "Route 53 + EFS만 사용",
+      "API Gateway + Lambda + DynamoDB"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "API Gateway는 HTTP 엔드포인트, Lambda는 요청 단위 컴퓨팅, DynamoDB는 관리형 키-값/문서 데이터 저장을 제공한다. 낮고 가변적인 트래픽에 유리하다.",
+    "why": [
+      "CDN·디스크·확장만으로 API 실행 계층이 완성되지 않는다",
+      "고정 호스트는 유휴 시간 비용과 운영 부담이 크다",
+      "DNS와 파일스토리지로 API 로직을 실행할 수 없다",
+      "서버 운영 부담을 낮추는 서버리스 조합이다"
+    ],
+    "criterion": "가변 트래픽 + 서버 관리 최소화 → API Gateway / Lambda / DynamoDB",
+    "trap": "서버리스는 \"서버가 없다\"가 아니라 서버 운영을 AWS가 관리한다.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "Serverless",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D05Q3",
+    "date": "2026-11-13",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "중",
+    "stem": "여러 개발팀이 같은 AWS 계정의 S3 버킷을 공유한다. 팀 태그가 일치하는 객체만 접근하게 하고, 팀이 늘어나도 정책 복제를 피하려 한다. 적절한 설계는?",
+    "options": [
+      "사용자마다 버킷 전체 읽기 허용",
+      "IAM ABAC를 사용하고 주체 태그와 객체/리소스 태그 조건을 비교한다",
+      "모든 객체를 퍼블릭으로 만든다",
+      "루트 계정 하나로 모든 팀이 로그인한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "ABAC(속성 기반 접근 제어)는 주체·리소스의 태그와 IAM 정책 조건을 조합하여 동적인 최소 권한을 구현한다. S3의 지원 조건 키 및 객체 태깅을 확인해야 한다.",
+    "why": [
+      "팀 경계를 구현하지 못한다",
+      "태그를 기반으로 확장 가능한 정책을 구성할 수 있다",
+      "공개 객체는 접근 경계 요구를 어긴다",
+      "공유 루트 로그인은 감사와 보안에 부적절하다"
+    ],
+    "criterion": "팀·프로젝트 수 증가 + 태그 기반 경계 → ABAC",
+    "trap": "RBAC는 역할 중심, ABAC는 속성·태그 조건 중심으로 구분한다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D06Q1",
+    "date": "2026-11-14",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "주문이 생성되면 재고, 알림, 정산 시스템이 독립적으로 같은 이벤트를 받아야 한다. 재고 시스템 장애 중에도 나머지는 정상 처리하고, 재고 이벤트는 나중에 재시도해야 한다. 아키텍처는?",
+    "options": [
+      "주문 API가 세 시스템의 HTTP API를 순서대로 동기 호출한다",
+      "SNS 토픽에 시스템별 SQS 큐를 구독시켜 팬아웃한다",
+      "하나의 SQS 큐를 세 시스템이 경쟁 소비한다",
+      "CloudWatch 지표 하나에 모든 주문 내용을 저장한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "SNS는 하나의 이벤트를 여러 구독자로 팬아웃하고, 구독자별 SQS는 메시지를 독립적으로 보관·재시도한다. 소비자는 각자 장애와 확장을 격리할 수 있다.",
+    "why": [
+      "하나의 동기 흐름에 연쇄 장애와 지연이 전파된다",
+      "여러 소비자에 독립된 내구성 있는 전달 경로를 제공한다",
+      "경쟁 소비 큐에서는 메시지 한 건을 모든 시스템이 각각 받는 구조가 아니다",
+      "모니터링 지표는 이벤트 분배 큐를 대신하지 않는다"
+    ],
+    "criterion": "하나의 이벤트 → 여러 시스템 각각 전달 = SNS fan-out + 구독자별 SQS",
+    "trap": "SQS 한 개에 여러 소비자가 붙으면 복제 전달이 아니라 경쟁 소비에 가깝다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D06Q2",
+    "date": "2026-11-14",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "서비스가 매일 00시에만 데이터베이스 전체 백업을 만든다. 23:50에 모든 데이터가 손실됐고 가장 최근 백업으로 복구한다. 추가 로그 복구는 없다. 이 사례의 실제 데이터 손실 시차에 가장 가까운 값은?",
+    "options": [
+      "0분",
+      "약 23시간 50분",
+      "10분",
+      "복구 서버를 켜는 시간만큼"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "23:50에 장애가 발생하고 최신 복원점이 00:00이므로 데이터 손실 간격은 약 23시간 50분이다. RPO는 복구 지점의 데이터 손실 기준이다.",
+    "why": [
+      "동기 복제 등이 없으므로 0이 아니다",
+      "최종 복구 지점과 장애 시각의 차이이다",
+      "10분은 다음 백업 예정까지 남은 시간에 불과하다",
+      "서버를 켜는 시간은 주로 RTO 쪽의 시간 요소다"
+    ],
+    "criterion": "RPO는 \"얼마나 과거 상태로 돌아가나\", RTO는 \"얼마나 오래 멈추나\"",
+    "trap": "백업 주기와 실제 장애 시각이 주어지면 마지막 정상 복원점에서 계산한다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D06Q3",
+    "date": "2026-11-14",
+    "topic": "EC2",
+    "domain": "성능",
+    "level": "중",
+    "stem": "웹 애플리케이션이 한 AZ의 EC2 한 대에서 실행된다. AZ 장애에도 자동 복구하고 트래픽 증가 시 수평 확장해야 한다. 가장 적절한 구성은?",
+    "options": [
+      "하나의 EC2 인스턴스만 예약 인스턴스로 구매한다",
+      "서로 다른 AZ에 걸친 Auto Scaling 그룹과 Application Load Balancer를 구성한다",
+      "한 인스턴스의 EBS 크기만 두 배로 늘린다",
+      "한 AZ에 EC2 두 대를 두고 수동 DNS 수정한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "멀티 AZ Auto Scaling 그룹이 목표 인스턴스 수를 유지하고 ALB가 가용 인스턴스로 요청을 분산한다. 상태는 공유 또는 외부 저장소로 분리해야 한다.",
+    "why": [
+      "구매 옵션은 고가용성 구성을 대체하지 않는다",
+      "AZ 단위 장애 대응과 수평 확장을 함께 제공한다",
+      "디스크 크기는 가용 영역 장애 대응과 무관하다",
+      "동일 AZ에만 있으면 해당 AZ 장애에 취약하다"
+    ],
+    "criterion": "웹 트래픽 분산·AZ 장애 대응 → Multi-AZ ASG + ALB",
+    "trap": "Auto Scaling은 인스턴스 수를 조절하지만 세션 상태 외부화는 별도로 필요하다.",
+    "source": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EC2",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D07Q1",
+    "date": "2026-11-15",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "중",
+    "stem": "여러 AZ에 있는 컨테이너가 Linux 공유 파일을 사용한다. 자주 안 쓰는 파일이 많지만 파일 경로는 그대로 유지해야 한다. 저장 비용을 줄이려면?",
+    "options": [
+      "EFS Lifecycle Management를 이용해 비활성 파일을 EFS IA로 이동한다",
+      "EBS 볼륨 하나를 모든 AZ의 인스턴스에 직접 붙인다",
+      "S3 Glacier Deep Archive에 옮기고 POSIX 마운트로 즉시 접근한다",
+      "모든 파일을 EC2 Instance Store로 옮긴다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "EFS Lifecycle Management로 접근 패턴에 따라 EFS IA 등의 스토리지 클래스를 사용할 수 있다. EFS의 파일 접근 모델을 유지한 채 비용을 최적화한다.",
+    "why": [
+      "파일시스템 인터페이스를 유지하며 비활성 데이터의 저장 비용을 낮춘다",
+      "EBS는 일반적으로 다중 AZ 공유 블록 장치로 붙이지 않는다",
+      "Deep Archive는 즉시 읽는 NFS 파일시스템이 아니다",
+      "임시 로컬 저장소는 공유·지속성 요건을 충족하지 못한다"
+    ],
+    "criterion": "공유 POSIX 파일 + 낮은 접근 빈도 → EFS Lifecycle/IA",
+    "trap": "EFS IA는 S3 Standard-IA와 다른 서비스의 스토리지 클래스다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D07Q2",
+    "date": "2026-11-15",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "사용자 실수로 S3 객체의 새 버전이 잘못 업로드되거나 삭제되는 사고가 발생한다. 이전 정상 내용을 쉽게 되살릴 수 있게 하는 핵심 기능은?",
+    "options": [
+      "S3 정적 웹 호스팅",
+      "S3 버전 관리(Versioning)",
+      "S3 Transfer Acceleration",
+      "CloudFront 지리적 제한"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "S3 Versioning은 여러 객체 버전을 보관해 덮어쓰거나 삭제 마커가 생성된 뒤 이전 버전으로 복구하는 기반이 된다. 영구 삭제나 랜섬웨어까지 막으려면 Object Lock 등 추가 제어를 검토한다.",
+    "why": [
+      "웹 호스팅은 변경 이력 보존 기능이 아니다",
+      "변경 전 객체 버전 보존에 직접 대응한다",
+      "업로드 경로 가속이지 데이터 복구 기능이 아니다",
+      "CDN 지역 제한은 객체 버전 복구와 무관하다"
+    ],
+    "criterion": "실수 덮어쓰기/삭제 복구 → Versioning, 변경 불가 보존 → Object Lock",
+    "trap": "Versioning만으로 관리자에 의한 모든 버전 영구 삭제를 완전히 차단하지는 못한다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D07Q3",
+    "date": "2026-11-15",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "중",
+    "stem": "CloudFront 뒤의 S3에 새 CSS 파일을 업로드했으나 일부 사용자가 오래된 파일을 본다. 즉시 새 버전을 배포하는 운영 방식으로 가장 확장성과 비용 예측이 좋은 장기 전략은?",
+    "options": [
+      "CloudFront를 제거하고 모든 사용자를 원본으로 보낸다",
+      "정적 자산 파일 이름에 콘텐츠 해시 또는 버전 번호를 넣고 HTML에서 새 경로를 참조한다",
+      "매번 전체 /* 경로를 무조건 무효화한다",
+      "S3 버킷을 퍼블릭으로 바꾼다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "파일명 버저닝은 새 URL로 캐시 키가 달라지므로 이전 캐시 만료와 무관하게 새로운 자산을 배포할 수 있다. 필요하면 CloudFront invalidation도 사용 가능하다.",
+    "why": [
+      "엣지 가속 기능을 포기한다",
+      "버전별 URL이 불변 자산 캐시와 잘 맞는다",
+      "전체 무효화는 가능하지만 반복적인 운영 부담과 비용을 고려해야 한다",
+      "객체 공개 여부는 캐시 무효화 문제와 무관하다"
+    ],
+    "criterion": "빈번한 정적 배포 → 파일명 해시, 긴 캐시 TTL",
+    "trap": "캐시 무효화(invalidation)와 파일명 버저닝은 서로 다른 갱신 전략이다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D08Q1",
+    "date": "2026-11-16",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "중",
+    "stem": "EC2 애플리케이션이 같은 계정의 DynamoDB 테이블을 조회한다. 담당자는 액세스 키를 소스 코드나 환경 변수에 넣지 않고 안전하게 인증하고 싶다. 무엇이 최선인가?",
+    "options": [
+      "루트 자격 증명을 EC2 userdata에 기록한다",
+      "EC2 인스턴스에 IAM 역할(인스턴스 프로파일)을 연결한다",
+      "개발자의 개인 IAM 사용자 키를 AMI 이미지에 넣는다",
+      "DynamoDB 테이블을 공개 읽기로 설정한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "EC2 인스턴스 프로파일을 통해 역할의 임시 자격 증명을 획득하고 SDK 기본 자격 증명 체인을 활용한다. 앱별 최소 권한 정책을 연결한다.",
+    "why": [
+      "루트 자격 증명을 애플리케이션에 쓰면 안 된다",
+      "역할 기반 임시 자격 증명으로 장기 키 관리를 없앤다",
+      "개인 장기 키가 이미지에 노출·복제될 수 있다",
+      "인증을 제거하는 것은 최소 권한 요구를 어긴다"
+    ],
+    "criterion": "AWS 워크로드 → 서비스 역할과 임시 자격 증명",
+    "trap": "사용자 로그인용 IAM 사용자와 EC2 서비스 역할을 분리해 생각한다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D08Q2",
+    "date": "2026-11-16",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "고객 활동 이벤트를 SNS 토픽에 발행한다. 마케팅 시스템은 type=promotion 이벤트만 받아야 하고 감사 시스템은 모든 이벤트를 받아야 한다. 발행자 코드를 여러 갈래로 나누지 않으려면?",
+    "options": [
+      "모든 이벤트를 S3에 공개하고 마케팅이 직접 긁어간다",
+      "SQS 메시지 보관 기간을 0초로 설정한다",
+      "마케팅용 SNS 구독에 필터 정책을 설정하고 감사 구독은 필터를 두지 않는다",
+      "마케팅에만 루트 사용자 키를 제공한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "SNS 구독 필터 정책으로 메시지 속성 또는 본문에 따라 구독자별 전달을 제어한다. 필터 없는 구독은 전체 이벤트를 받는다.",
+    "why": [
+      "불필요하게 저장·조회 경로를 변경한다",
+      "큐 보존 기간은 구독 라우팅 제어가 아니다",
+      "동일 토픽에서 구독자별 전달 조건을 분리한다",
+      "권한 자격 증명은 이벤트 선택 필터와 무관하다"
+    ],
+    "criterion": "여러 소비자 + 조건별 선택 전달 → SNS subscription filter policy",
+    "trap": "SNS 필터는 발행자 코드의 분기 처리를 줄여줄 수 있다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D08Q3",
+    "date": "2026-11-16",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "다중 리전에서 서비스를 동시에 운영하고 사용자를 정상 리전으로 라우팅한다. 가장 낮은 복구 대기 시간을 추구하지만 운영 비용이 가장 큰 DR 방식은?",
+    "options": [
+      "파일럿 라이트",
+      "백업·복구",
+      "웜 스탠바이",
+      "멀티사이트 액티브-액티브"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "멀티사이트 액티브-액티브는 둘 이상의 사이트에서 실서비스를 운영한다. 빠른 전환이 가능하지만 복잡성·비용이 높으며 데이터 일관성과 장애 전환을 별도로 설계해야 한다.",
+    "why": [
+      "기본 컴포넌트만 살아 있다",
+      "복원부터 시작하므로 일반적으로 대기 시간이 길다",
+      "작은 보조 환경에서 확장이 필요할 수 있다",
+      "평상시 다중 사이트가 요청을 처리한다"
+    ],
+    "criterion": "최저 RTO 지향 + 최고 비용 허용 → 액티브-액티브",
+    "trap": "액티브-액티브라고 RPO=0이 자동 보장되는 것은 아니다. 복제 방식이 중요하다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D09Q1",
+    "date": "2026-11-17",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "중",
+    "stem": "프로덕션 EC2의 EBS 볼륨을 다른 AWS 리전에서도 복원할 수 있게 재해 복구 자료를 준비하려 한다. 일반적인 기본 접근은?",
+    "options": [
+      "기본 EBS 데이터가 자동으로 전 세계 리전에 동기 복제된다고 가정한다",
+      "볼륨을 퍼블릭 S3 웹사이트로 만든다",
+      "하나의 EBS 볼륨을 다른 리전의 EC2에 직접 동시 연결한다",
+      "EBS 스냅샷을 생성하여 대상 리전으로 복사하고 필요할 때 볼륨을 복원한다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "EBS 스냅샷을 다른 리전에 복사하면 복원 기반을 만들 수 있다. 스냅샷 일정·암호화 KMS 키·복구 훈련과 RPO/RTO를 고려한다.",
+    "why": [
+      "일반 EBS 볼륨이 다른 리전으로 자동 복제되는 것은 아니다",
+      "객체 웹 호스팅은 EBS 백업 방식이 아니다",
+      "EBS 볼륨은 리전을 가로질러 연결되지 않는다",
+      "대상 리전 복원을 위한 표준적인 스냅샷 경로다"
+    ],
+    "criterion": "EBS 리전 간 DR 복원 → 스냅샷 복사",
+    "trap": "스냅샷은 복원점이지 실행 중 DB의 실시간 다중 리전 복제 수단은 아니다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D09Q2",
+    "date": "2026-11-17",
+    "topic": "EC2",
+    "domain": "성능",
+    "level": "중",
+    "stem": "초저지연 HPC 계산 노드 간 네트워크 지연을 최소화하려고 한다. 한 가용 영역의 EC2 인스턴스들이 서로 가까이 배치되는 것이 가장 중요하다. 적절한 배치 그룹은?",
+    "options": [
+      "Placement group 없이 AZ마다 자동 한 대씩만 배치",
+      "Cluster placement group",
+      "Spread placement group",
+      "Partition placement group"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "Cluster 배치 그룹은 단일 AZ에서 인스턴스들의 물리적 근접성을 높여 낮은 네트워크 지연과 높은 처리량을 목표로 한다.",
+    "why": [
+      "자동 분산만으로 물리적 근접성 이점을 보장하지 못한다",
+      "고성능 노드 간 통신 요건에 가장 가깝다",
+      "Spread는 인스턴스를 서로 다른 하드웨어에 분산해 장애 상관성을 줄이려는 용도다",
+      "Partition은 대형 분산 시스템의 파티션별 장애 격리에 더 가깝다"
+    ],
+    "criterion": "노드 간 레이턴시↓ → Cluster, 서로 다른 하드웨어 장애 격리 → Spread/Partition",
+    "trap": "Cluster는 내결함성 최우선 배치가 아니라 성능 최우선 배치다.",
+    "source": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EC2",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D09Q3",
+    "date": "2026-11-17",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "민감한 보고서가 S3에 저장된다. 저장 시 암호화 키 사용을 감사할 수 있고, 키 정책과 권한을 세밀하게 제어해야 한다. 가장 적절한 서버 측 암호화 방식은?",
+    "options": [
+      "SSE-S3만 선택하고 KMS 접근 로그를 기대한다",
+      "암호화 없이 전송 TLS만 사용한다",
+      "S3 버킷 이름을 암호화된 문자열로 만든다",
+      "SSE-KMS를 사용하고 KMS 키 정책 및 관련 IAM 권한을 구성한다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "SSE-KMS는 AWS KMS 키 접근 제어, 키 정책, 감사 추적과 결합할 수 있다. S3 접근 권한 외에 KMS 키 사용 권한을 확인해야 한다.",
+    "why": [
+      "SSE-S3는 S3 관리형 키이며 고객 관리형 KMS 키 정책과 구분된다",
+      "전송 중 암호화만으로 저장 시 암호화 요구를 충족하지 못한다",
+      "버킷 이름 변경은 암호화가 아니다",
+      "키 정책과 사용 감사 요구를 충족하기 유리하다"
+    ],
+    "criterion": "키 접근 통제·감사 요구 → SSE-KMS",
+    "trap": "S3 버킷 정책 허용만으로 KMS 키 사용 권한까지 자동 확보되는 것은 아니다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D10Q1",
+    "date": "2026-11-18",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "중",
+    "stem": "기존 S3 정적 웹사이트 엔드포인트를 CloudFront 오리진으로 쓰고 있다. 이제 오리진을 비공개로 잠그고 OAC를 사용하고 싶다. 가장 올바른 수정은?",
+    "options": [
+      "S3 전체 버킷을 공개로 유지하면 원본 보호 조건이 충족된다",
+      "CloudFront 오리진을 일반 S3 버킷 엔드포인트로 변경하고 OAC와 버킷 정책을 구성한다",
+      "웹사이트 엔드포인트를 그대로 두고 OAC를 켜면 된다",
+      "S3 웹사이트 엔드포인트에 IAM 역할을 직접 첨부한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "OAC는 일반 S3 버킷 오리진을 지원한다. 웹사이트 엔드포인트는 사용자 지정 오리진이어서 OAC를 연결할 수 없다. 필요한 index/404 처리를 CloudFront에서 재구성해야 할 수도 있다.",
+    "why": [
+      "퍼블릭 원본은 비공개 요구에 반한다",
+      "일반 버킷 오리진을 사용해야 비공개 원본 보호를 구성할 수 있다",
+      "웹사이트 엔드포인트에는 OAC를 적용할 수 없다",
+      "웹사이트 엔드포인트 자체에 역할을 붙일 수 없다"
+    ],
+    "criterion": "OAC 사용 여부 결정 먼저 → 일반 S3 오리진인지 확인",
+    "trap": "웹사이트 호스팅 URL의 리디렉션/오류 페이지 동작과 일반 버킷 오리진의 동작은 다르다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D10Q2",
+    "date": "2026-11-18",
+    "topic": "Serverless",
+    "domain": "복원력",
+    "level": "상",
+    "stem": "기존 표준 Lambda 함수에서 한 번에 35분이 걸리는 동영상 변환 작업을 실행하려 한다. 트리거는 SQS이고, 작업이 중단돼도 다시 시작할 수 있다. 현재 일반적인 설계에서 적절한 대안은?",
+    "options": [
+      "표준 Lambda의 타임아웃을 35분으로 설정한다",
+      "API Gateway 제한 시간을 35분으로 늘리면 Lambda도 자동 연장된다",
+      "SQS 트리거에 맞춰 ECS Fargate 작업을 실행하고 작업 상태를 관리한다",
+      "CloudFront 함수에서 동영상 전체를 변환한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "일반 표준 Lambda의 실행 제한은 15분이다. 장시간 컨테이너 작업은 ECS Fargate 등을 고려한다. 일부 최신 Lambda 관리형 실행 옵션은 제한이 다를 수 있어 시험의 워크로드 조건을 확인한다.",
+    "why": [
+      "표준 Lambda의 15분 제한을 초과한다",
+      "API 게이트웨이 설정이 함수 실행 시간 제한을 없애지 않는다",
+      "장시간 비동기 실행에 적합한 관리형 컨테이너 선택지다",
+      "CloudFront Functions는 짧은 엣지 로직용이다"
+    ],
+    "criterion": "짧은 이벤트 로직 → Lambda, 장시간 컨테이너 작업 → Fargate/Batch",
+    "trap": "\"모든 Lambda는 무조건 15분\" 식의 단정 대신 함수 실행 모드와 현재 할당량을 확인한다.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "Serverless",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D10Q3",
+    "date": "2026-11-18",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "상",
+    "stem": "다른 AWS 계정의 사용자가 우리 계정 S3 버킷의 특정 경로를 읽어야 한다. 교차 계정 리소스 정책을 이용해 허용하려 한다. 일반 IAM 주체를 가정할 때 무엇을 확인해야 하는가?",
+    "options": [
+      "우리 계정의 루트 키를 상대방에게 넘긴다",
+      "수신 버킷 정책의 허용과 요청자 계정 측 IAM 권한 및 명시적 거부 여부를 함께 확인한다",
+      "버킷 DNS 주소만 알면 사설 객체를 읽을 수 있다",
+      "S3 암호화 설정을 끄면 정책 평가가 필요 없어진다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "교차 계정 S3 접근은 리소스 기반 정책과 요청 주체의 권한, SCP·명시적 거부 등 적용되는 정책 평가를 함께 확인한다. SSE-KMS 객체라면 KMS 권한도 별도 고려한다.",
+    "why": [
+      "루트 키 공유는 금지해야 하는 설계다",
+      "두 계정에 적용되는 권한 및 거부를 종합 평가해야 한다",
+      "사설 객체 접근에는 인증·인가가 필요하다",
+      "암호화 여부가 접근 권한 평가를 제거하지 않는다"
+    ],
+    "criterion": "교차 계정 직접 접근 → 버킷 정책 + 호출 주체 권한 평가",
+    "trap": "S3 버킷 허용만 보고 KMS 키 정책, SCP, 명시적 거부를 놓치기 쉽다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D11Q1",
+    "date": "2026-11-19",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "결제 이벤트 소비자가 반복해서 실패해 같은 메시지가 계속 다시 전달되고 있다. 일정 횟수 이상 실패한 메시지만 따로 보관해 원인 분석 후 재처리하고 싶다. 무엇이 적절한가?",
+    "options": [
+      "SQS 메시지 보관 기간을 1초로 줄인다",
+      "SNS 토픽을 삭제해 실패 메시지를 제거한다",
+      "CloudFront 캐시를 비운다",
+      "SQS Dead-letter queue(DLQ)와 maxReceiveCount를 설정한다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "SQS 큐의 redrive policy에서 DLQ와 maxReceiveCount를 설정하면 지정된 수신 횟수 이상 처리하지 못한 메시지를 격리할 수 있다. 운영 중 재처리(redrive) 절차를 설계한다.",
+    "why": [
+      "메시지를 너무 빨리 없애면 장애 원인을 잃을 수 있다",
+      "토픽 삭제는 문제를 진단하지 못한다",
+      "CDN은 큐 실패 처리와 무관하다",
+      "반복 실패를 정상 흐름에서 분리해 조사할 수 있다"
+    ],
+    "criterion": "반복 실패 격리 → DLQ, 일시 실패 재시도 → visibility timeout 및 소비 재시도",
+    "trap": "DLQ는 메시지를 자동 수정하는 서비스가 아니라 실패를 격리·보관하는 장치다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D11Q2",
+    "date": "2026-11-19",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "Amazon RDS를 한 리전에서 운영 중이다. 단일 AZ 장애 시 수동 복구 시간을 줄이는 것이 최우선이며, 분석용 읽기 트래픽 증대는 현재 필요 없다. 무엇을 선택해야 하는가?",
+    "options": [
+      "DB 인스턴스를 더 큰 클래스 하나로 변경한다",
+      "RDS Read Replica 하나만 만들고 자동 장애 조치를 전제로 한다",
+      "RDS Multi-AZ 배치",
+      "S3 정적 웹사이트 복제만 사용한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "RDS Multi-AZ는 고가용성과 장애 조치용이다. Read Replica는 주로 읽기 성능 확장과 읽기 복제에 사용하며 동일한 자동 장애 조치 기능과 혼동해서는 안 된다(특정 배치 유형별 기능은 별도 확인).",
+    "why": [
+      "수직 확장은 AZ 장애 복원과 별개다",
+      "기본 Read Replica를 Multi-AZ 고가용성 대체로 단정할 수 없다",
+      "고가용성·자동 장애 조치 목적에 적합하다",
+      "정적 사이트 복제는 데이터베이스 HA가 아니다"
+    ],
+    "criterion": "DB 고가용성 → Multi-AZ, 읽기 확장 → Read Replica",
+    "trap": "Multi-AZ와 Read Replica는 모두 복제하지만 설계 목적이 다르다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D11Q3",
+    "date": "2026-11-19",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "중",
+    "stem": "Linux EC2 앱 10대가 함께 쓰는 파일시스템을 유지하려 한다. 각 AZ에 있는 EC2에서 적절히 접근하고 네트워크 기반으로 마운트한다. EFS에 대한 옳은 설명은?",
+    "options": [
+      "EFS는 한 EC2에만 블록 장치로 연결할 수 있다",
+      "EFS는 객체 키로만 접근하며 디렉터리 구조를 지원하지 않는다",
+      "EFS는 EC2 인스턴스가 종료되면 데이터가 자동 삭제된다",
+      "EFS는 NFS 기반 공유 파일시스템으로 AZ별 마운트 타깃 등을 구성할 수 있다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "EFS는 관리형 탄력적 파일시스템이며 NFS로 마운트할 수 있다. 보안 그룹, 접근 제어 및 적절한 연결 경로를 설정한다.",
+    "why": [
+      "EBS의 일반적인 블록 스토리지 접근 모델에 가깝다",
+      "S3 객체 모델과 혼동한 설명이다",
+      "EFS 수명은 특정 EC2의 종료와 연결되지 않는다",
+      "EFS의 기본 공유 모델을 정확히 설명한다"
+    ],
+    "criterion": "EFS=NFS 파일시스템, EBS=블록 볼륨, S3=객체",
+    "trap": "공유 파일이 필요하면 스토리지 모델을 먼저 보고 서비스명은 나중에 고른다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D12Q1",
+    "date": "2026-11-20",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "모바일 앱이 대용량 사진을 업로드한다. 애플리케이션 백엔드는 업로드를 중계하지 않고, 인증된 사용자에게 일정 시간만 업로드 권한을 주려 한다. 가장 간단한 설계는?",
+    "options": [
+      "S3 버킷을 완전히 퍼블릭 쓰기로 바꾼다",
+      "모바일에 AWS 루트 액세스 키를 넣는다",
+      "백엔드가 객체 키·허용 메서드·만료 시간을 제한한 S3 사전 서명 URL을 발급한다",
+      "모든 사진을 CloudFront Functions에서 받아 저장한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "사전 서명 URL(presigned URL)은 서명자의 권한 범위 안에서 특정 S3 작업을 일정 시간 허용해 클라이언트가 직접 업로드하도록 할 수 있다.",
+    "why": [
+      "퍼블릭 쓰기는 악용 위험이 크다",
+      "루트 키는 배포하면 안 된다",
+      "짧은 기간의 제한된 직접 업로드에 적합하다",
+      "CloudFront Functions는 파일 업로드 저장 계층이 아니다"
+    ],
+    "criterion": "클라이언트의 제한적 S3 직접 접근 → presigned URL",
+    "trap": "Presigned URL은 오리진 보호용 OAC나 CDN 사용자 인증용 signed URL과 목적이 다르다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D12Q2",
+    "date": "2026-11-20",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "상",
+    "stem": "로그인한 유료 회원에게 하루 동안 강의 파일 수십 개를 CloudFront로 제공하려 한다. 접근 제어를 위해 적절한 기능 두 가지를 고르시오. (2개 선택)",
+    "options": [
+      "CloudFront 서명된 쿠키를 이용해 여러 제한 파일을 허용한다",
+      "EC2 퍼블릭 IP만 숨기면 누구나 파일을 읽지 못한다",
+      "CloudFront 신뢰할 수 있는 키 그룹/서명자를 구성해 서명을 검증한다",
+      "CloudFront 캐시 TTL을 0으로 설정하면 자동으로 인증된다",
+      "S3 버킷을 모든 익명 사용자에게 공개한다"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "explain": "CloudFront 서명된 쿠키와 신뢰할 수 있는 키 그룹(또는 적절한 서명자)을 조합해 파일 집합에 대한 유효기간 있는 접근을 제어할 수 있다. 오리진 비공개는 별도 설정한다.",
+    "why": [
+      "여러 파일에 대한 세션형 접근에 적합하다",
+      "주소 은닉은 권한 제어가 아니다",
+      "서명 검증에 필요한 신뢰 체인을 구성한다",
+      "캐시 TTL은 인증 기능이 아니다",
+      "원본을 공개하면 CloudFront 제어를 우회할 수 있다"
+    ],
+    "criterion": "CloudFront 보호 콘텐츠 → signed cookies/URLs + trusted key group + 비공개 오리진",
+    "trap": "서명 URL/쿠키는 viewer 접근, OAC는 CloudFront→S3 오리진 접근을 보호한다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D12Q3",
+    "date": "2026-11-20",
+    "topic": "Serverless",
+    "domain": "복원력",
+    "level": "상",
+    "stem": "서버리스 주문 시스템에서 S3 업로드 성공 후 이미지 검수 Lambda를 비동기 호출한다. 함수가 계속 실패해도 이벤트와 실패 원인을 조사할 수 있어야 한다. 가장 적절한 접근은?",
+    "options": [
+      "CloudFront TTL을 줄여 작업이 재실행되게 한다",
+      "모든 오류를 catch한 뒤 무조건 성공으로 반환한다",
+      "비동기 호출의 실패 대상(on-failure destination) 또는 지원되는 DLQ를 설정하고 로그/재시도 정책을 구성한다",
+      "Lambda 실행 역할에 AdministratorAccess를 부여한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "Lambda 비동기 호출은 재시도와 이벤트 보존 정책을 가지며, 실패 대상이나 DLQ를 통해 최종 실패 이벤트를 추적할 수 있다. SQS 이벤트 소스 매핑의 재시도 방식과는 구분한다.",
+    "why": [
+      "CDN 캐시는 비동기 처리 재시도와 무관하다",
+      "실패를 숨겨 이벤트 소실을 만들 수 있다",
+      "최종 실패 경로와 장애 조사 가능성을 만든다",
+      "과도한 IAM 권한으로 애플리케이션 오류가 해결되지 않는다"
+    ],
+    "criterion": "비동기 Lambda 실패 추적 → Destinations/DLQ, SQS 소비자 실패 → 큐 redrive/DLQ",
+    "trap": "Lambda 호출 방식(비동기 직접 호출 vs SQS 폴링)에 따라 실패 처리 책임이 다르다.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "Serverless",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D13Q1",
+    "date": "2026-11-21",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "중",
+    "stem": "IAM 정책에서 같은 S3 작업에 대해 한 정책은 Allow를, 다른 적용 정책은 명시적 Deny를 부여한다. 최종 결과는?",
+    "options": [
+      "유료 계정이면 Allow가 우선된다",
+      "Allow가 우선 적용된다",
+      "요청 순서에 따라 랜덤하게 결정된다",
+      "명시적 Deny가 우선하여 거부된다"
+    ],
+    "correct": [
+      3
+    ],
+    "explain": "AWS 정책 평가에서는 적용되는 정책의 명시적 Deny가 허용보다 우선한다. 단순히 Allow 정책을 추가한다고 명시적 거부를 우회할 수 없다.",
+    "why": [
+      "결제 유형은 IAM 정책 우선순위와 무관하다",
+      "명시적 거부보다 허용이 우선하지 않는다",
+      "정책 평가 결과는 요청 순서의 무작위가 아니다",
+      "최종적으로 거부된다"
+    ],
+    "criterion": "권한 거부 원인 분석 → explicit Deny 먼저 확인",
+    "trap": "권한이 필요하다고 Allow만 추가해도 SCP/버킷 정책의 명시적 Deny가 남아 있으면 실패한다.",
+    "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D13Q2",
+    "date": "2026-11-21",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "SQS 큐를 폴링하는 소비자가 메시지를 받으면 2분 동안 데이터를 처리한 뒤 삭제한다. 처리 중에는 다른 소비자가 같은 메시지를 다시 받지 않게 하는 설정은?",
+    "options": [
+      "SQS 메시지 크기 제한을 늘린다",
+      "Visibility timeout을 처리 시간보다 충분히 길게 설정한다",
+      "Message retention period를 0으로 만든다",
+      "CloudFront 오리진 요청 정책을 수정한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "Visibility timeout은 메시지를 수신한 후 다른 소비자에게 일시적으로 보이지 않도록 하는 기간이다. 성공 처리 후 DeleteMessage를 호출해야 하며, 실패 시 제한 시간이 지나면 다시 보일 수 있다.",
+    "why": [
+      "크기 제한과 소비 중 가시성은 무관하다",
+      "작업 중 재전달 가능성을 줄인다",
+      "보존 기간은 큐에서 메시지를 유지하는 총 기간이다",
+      "CDN 설정은 큐 처리와 무관하다"
+    ],
+    "criterion": "소비 중 메시지 숨김 → visibility timeout, 메시지 총 보관 → retention period",
+    "trap": "Visibility timeout을 늘려도 정확히 한 번 처리하는 것은 보장되지 않는다.",
+    "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D13Q3",
+    "date": "2026-11-21",
+    "topic": "RTO/RPO",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "한 스타트업이 장애 복구에 수 시간이 걸려도 괜찮고, 백업 시점 이후 일부 데이터 손실도 허용한다. 재해 복구 비용을 가장 낮추고 싶다. 적절한 전략은?",
+    "options": [
+      "백업 및 복구(Backup and restore)",
+      "보조 리전에 상시 축소 서비스 운영",
+      "상시 동작하는 다중 리전 액티브-액티브",
+      "모든 리전에 동일한 풀 사이즈 서비스 배치"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "백업 및 복구는 상대적으로 낮은 지속 비용으로 DR을 시작할 수 있다. 복구는 인프라 배포와 데이터 복원 시간이 필요하고 백업 빈도에 따른 데이터 손실이 있을 수 있다.",
+    "why": [
+      "느린 복구를 수용하면 비용 최적화에 적합하다",
+      "웜 스탠바이는 빠르지만 상시 비용이 생긴다",
+      "빠른 전환을 제공하지만 운영비가 크다",
+      "요구보다 과도한 가동 비용이 들 수 있다"
+    ],
+    "criterion": "완화된 RTO/RPO + 비용 우선 → Backup & Restore",
+    "trap": "DR 최적 해법은 요구 시간과 비용의 균형이지 무조건 가장 빠른 방식이 아니다.",
+    "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "RTO/RPO",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D14Q1",
+    "date": "2026-11-22",
+    "topic": "EC2",
+    "domain": "성능",
+    "level": "중",
+    "stem": "24시간 일정한 웹 서버의 장기 사용량이 있고, 월말에는 2일 동안만 대규모 가변 배치를 실행한다. 구매 비용 최적화 전략으로 옳은 두 가지를 고르시오. (2개 선택)",
+    "options": [
+      "모든 서버에 영구 온디맨드만 사용해야 비용이 최소다",
+      "중단 허용 배치는 Spot 용량과 재시도 설계를 고려한다",
+      "Spot 용량이 절대 회수되지 않는다고 가정한다",
+      "월말 배치를 위해 전체 수요에 3년 전용 호스트를 약정한다",
+      "예측 가능한 상시 사용량에는 Savings Plans 또는 적절한 예약 약정을 고려한다"
+    ],
+    "correct": [
+      1,
+      4
+    ],
+    "explain": "예측 가능한 컴퓨팅 사용량은 Savings Plans나 예약 모델로 절감하고, 중단 가능한 피크 배치는 Spot을 이용해 추가 비용을 낮출 수 있다.",
+    "why": [
+      "온디맨드는 유연하지만 항상 최저 비용은 아니다",
+      "중단 허용 비정기 작업에 Spot이 적절하다",
+      "Spot은 회수될 수 있어 체크포인트와 재시도가 필요하다",
+      "짧은 피크에 장기 고정 용량 약정은 과투자 가능성이 높다",
+      "안정적인 기초 수요에 장기 할인 모델이 맞는다"
+    ],
+    "criterion": "베이스라인 → 약정 할인, 유연한 중단 가능 피크 → Spot",
+    "trap": "Savings Plans/RI는 구매 모델이고 Auto Scaling은 용량 조정 기능이다.",
+    "source": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EC2",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D14Q2",
+    "date": "2026-11-22",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "사용자가 올린 파일 수백만 개는 어떤 것이 자주 열릴지 예측하기 어렵다. 접근 패턴에 따라 자동으로 저장 비용을 낮추되 애플리케이션을 거의 수정하지 않으려면?",
+    "options": [
+      "S3 Intelligent-Tiering",
+      "모든 파일을 Glacier Deep Archive로 즉시 이동",
+      "버킷을 EC2 Instance Store에 저장",
+      "모든 파일을 S3 One Zone-IA로 고정"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "S3 Intelligent-Tiering은 액세스 패턴을 모니터링해 적합한 접근 티어로 자동 이동한다. 모니터링·자동화 요금과 선택한 아카이브 티어의 조회 특성도 검토한다.",
+    "why": [
+      "예측하기 어려운 접근 빈도를 자동 최적화한다",
+      "장기 아카이브는 빠른 접근 요구가 발생할 때 부적합할 수 있다",
+      "인스턴스 로컬 임시 저장소는 S3 대체가 아니다",
+      "단일 AZ 클래스는 다중 AZ 복원력 요구와 충돌할 수 있다"
+    ],
+    "criterion": "접근 빈도 알 수 없음 → Intelligent-Tiering, 확실히 드묾 → IA 계열",
+    "trap": "Intelligent-Tiering은 스토리지 티어가 자동 변하며 모니터링 비용이 있다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D14Q3",
+    "date": "2026-11-22",
+    "topic": "EBS/EFS",
+    "domain": "성능",
+    "level": "상",
+    "stem": "두 EC2 인스턴스가 동일한 EBS 블록 디스크에 동시에 쓰기를 해야 한다. 팀은 Multi-Attach를 검토 중이다. 옳은 설명 두 가지를 고르시오. (2개 선택)",
+    "options": [
+      "범용 gp3 볼륨은 어떤 환경에서도 기본 Multi-Attach가 가능하다",
+      "Multi-Attach를 켜면 일반 ext4를 아무 조정 없이 여러 노드에서 안전하게 동시 쓸 수 있다",
+      "서로 다른 AWS 리전의 모든 EC2가 하나의 볼륨을 공유할 수 있다",
+      "동시 쓰기 충돌을 막도록 애플리케이션 또는 클러스터 파일시스템 조정이 필요하다",
+      "EBS Multi-Attach는 지원되는 io1/io2 볼륨 등 제한된 조건에서 사용할 수 있다"
+    ],
+    "correct": [
+      3,
+      4
+    ],
+    "explain": "EBS Multi-Attach는 특정 Provisioned IOPS 볼륨 및 같은 AZ의 지원 인스턴스 등 조건에서 사용한다. 동시 파일시스템 쓰기 일관성은 스토리지가 대신 해결하지 않는다.",
+    "why": [
+      "일반 gp3는 Multi-Attach 대상이 아니다",
+      "기본 파일시스템은 다중 호스트 동시 쓰기를 안전하게 보장하지 않는다",
+      "Multi-Attach는 리전을 가로지르는 공유 장치가 아니다",
+      "클러스터 인식 파일시스템과 동시성 조정이 중요하다",
+      "볼륨 유형과 연결 조건의 제약이 있다"
+    ],
+    "criterion": "일반 다중 서버 파일 공유 → EFS, 특수 블록 Multi-Attach → io1/io2 + 클러스터 조정",
+    "trap": "Multi-Attach는 \"EFS처럼 아무 서버나 공유\"가 아니다.",
+    "source": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EBS/EFS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D15Q1",
+    "date": "2026-11-23",
+    "topic": "Serverless",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "서비스가 매일 서울 시간 08:00에 정기 작업을 수행해야 한다. 서버나 Cron 인스턴스 운영을 없애고 시간대를 명시해 Lambda를 실행하려 한다. 가장 적절한 구성은?",
+    "options": [
+      "CloudFront 캐시 만료를 08:00로 맞춘다",
+      "SQS FIFO 메시지 그룹 ID에 시간을 적어 둔다",
+      "EventBridge Scheduler에서 Asia/Seoul 시간대로 반복 일정을 생성하고 Lambda를 대상으로 지정한다",
+      "한 EC2를 하루 종일 실행하면서 OS cron만 사용한다"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "EventBridge Scheduler는 시간대 기반 정기·1회성 스케줄을 관리하고 Lambda 등을 대상으로 호출할 수 있다. 대상 권한과 재시도 정책을 설정한다.",
+    "why": [
+      "CDN 캐시 만료는 작업 스케줄러가 아니다",
+      "FIFO 그룹 ID는 처리 순서용이지 예약 실행 시각이 아니다",
+      "시간대와 운영형 스케줄을 관리하는 서버리스 선택지다",
+      "가능하지만 항상 켜져 있는 서버 관리가 필요하다"
+    ],
+    "criterion": "정해진 시각 호출 → EventBridge Scheduler, 작업 큐 → SQS",
+    "trap": "UTC cron 계산을 직접 관리할지 시간대 지원 스케줄러를 쓸지 구별한다.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "Serverless",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D15Q2",
+    "date": "2026-11-23",
+    "topic": "CloudFront",
+    "domain": "성능",
+    "level": "중",
+    "stem": "서비스가 지역 A와 지역 B의 사용자에게 웹 콘텐츠를 전달한다. 전 세계에 캐시된 정적 자산을 빠르게 배포하는 서비스와, 도메인 질의 시 정상 엔드포인트를 선택하는 서비스를 구분해야 한다. 옳은 연결은?",
+    "options": [
+      "둘 다 RDS 데이터베이스 Multi-AZ를 대체한다",
+      "CloudFront=DB 복제, Route 53=메시지 FIFO 처리",
+      "CloudFront=CDN 엣지 캐싱, Route 53=DNS 라우팅과 헬스 체크",
+      "Route 53=객체 저장, CloudFront=가상 머신 실행"
+    ],
+    "correct": [
+      2
+    ],
+    "explain": "CloudFront는 콘텐츠 전송 네트워크와 엣지 캐싱에, Route 53은 도메인 DNS와 라우팅 정책 및 헬스 체크에 초점이 있다. 두 서비스를 조합할 수 있다.",
+    "why": [
+      "DB 가용성 기능을 대체하지 않는다",
+      "스토리지 복제와 메시지 순서를 담당하지 않는다",
+      "두 서비스의 역할을 정확히 구분한다",
+      "둘 다 해당 기능의 기본 서비스가 아니다"
+    ],
+    "criterion": "사용자 근처 콘텐츠 캐시 → CloudFront, DNS 레벨 엔드포인트 선택 → Route 53",
+    "trap": "CDN 오리진 장애 대처와 DNS 기반 서비스 라우팅은 다른 계층이다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "D15Q3",
+    "date": "2026-11-23",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "상",
+    "stem": "신규 글로벌 서비스의 구성은 정적 프론트엔드, 짧은 JSON API, 주문 저장, 주문 완료 후 비동기 이메일 발송이다. 서버 운영 부담과 장애 전파를 최소화한다. 옳은 서비스 조합 두 가지를 고르시오. (2개 선택)",
+    "options": [
+      "S3 정적 웹사이트를 공개해 OAC로 오리진을 보호한다고 가정한다",
+      "API는 API Gateway + Lambda, 데이터는 DynamoDB, 이메일 처리는 SQS 비동기 작업으로 분리한다",
+      "이메일 API가 장애일 때도 사용자 HTTP 요청을 무조건 동기 대기시킨다",
+      "모든 호출을 EC2 한 대에서 처리하고 데이터는 Instance Store에만 저장한다",
+      "정적 프론트엔드는 S3 비공개 버킷 + CloudFront OAC로 제공한다"
+    ],
+    "correct": [
+      1,
+      4
+    ],
+    "explain": "S3+CloudFront는 전역 정적 콘텐츠 전달, API Gateway+Lambda+DynamoDB는 관리형 API·저장, SQS는 이메일 작업 분리와 버퍼링에 적합하다. 이메일 전송 계층은 SES 등을 추가할 수 있다.",
+    "why": [
+      "웹사이트 엔드포인트에는 OAC를 적용할 수 없다",
+      "요청 응답과 후속 비동기 처리의 장애를 격리한다",
+      "이메일 시스템 실패가 주문 API 지연·장애로 이어진다",
+      "단일 EC2와 임시 디스크는 장애·운영 위험이 크다",
+      "정적 사이트의 빠른 배포와 비공개 원본을 함께 구현한다"
+    ],
+    "criterion": "정적=CloudFront/S3, API=Gateway/Lambda, 상태=DynamoDB, 후속 작업=SQS",
+    "trap": "서버리스 서비스를 조합할 때 동기/비동기 경계를 먼저 설정한다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "F46",
+    "date": "2026-11-18",
+    "topic": "IAM",
+    "domain": "보안",
+    "level": "상",
+    "stem": "A 계정의 Lambda 역할이 B 계정의 SSE-KMS로 암호화된 S3 객체를 읽어야 한다. S3 객체 읽기 권한은 허용했지만 KMS AccessDenied가 발생한다. 최소 권한 원칙에 맞는 해결책은?",
+    "options": [
+      "버킷을 퍼블릭으로 변경해 KMS 검사를 우회한다",
+      "B 계정 KMS 키 정책에서 교차 계정 사용을 허용하고 A 계정 역할에 필요한 kms:Decrypt 권한을 부여한다",
+      "Lambda를 루트 사용자 키로 실행한다",
+      "S3 버킷 Versioning만 활성화한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "교차 계정 KMS 고객 관리형 키 접근에는 키 정책이 외부 계정을 허용하고, 사용 주체 쪽 IAM 권한도 필요한 작업을 허용해야 한다. 암호화된 객체를 복호화하는 읽기 작업에는 kms:Decrypt가 필요할 수 있다.",
+    "why": [
+      "퍼블릭 읽기는 암호화 키 권한을 대체하지 않는다",
+      "교차 계정 KMS 권한 부여 경로를 충족한다",
+      "루트 키는 권장되지 않고 키 정책 제한도 자동으로 풀리지 않는다",
+      "버전 관리는 KMS 접근 제어와 별개다"
+    ],
+    "criterion": "S3 허용 + KMS 거부 → KMS 키 정책 및 호출자 IAM 권한 확인",
+    "trap": "IAM 허용만 있으면 타 계정 KMS 키를 반드시 사용할 수 있다고 생각하지 않는다.",
+    "source": "https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "IAM",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "F47",
+    "date": "2026-11-19",
+    "topic": "SNS/SQS",
+    "domain": "복원력",
+    "level": "중",
+    "stem": "주문완료 이벤트가 발생할 때 재고, 메일, 포인트 시스템이 이벤트를 각각 빠짐없이 독립적으로 처리해야 한다. 한 시스템의 장애가 나머지 시스템에 영향을 주지 않아야 한다. 어떤 구성이 가장 적절한가?",
+    "options": [
+      "세 시스템이 하나의 SQS 큐에서 경쟁 소비한다",
+      "SNS 주제에 세 개의 독립 SQS 큐를 구독시키고 각 서비스가 자신의 큐를 소비한다",
+      "주문 API가 세 시스템을 순차적으로 동기 호출한다",
+      "CloudFront 캐시 무효화 이벤트로 주문을 전달한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "SNS 팬아웃과 소비자별 SQS 큐를 결합하면 각각이 동일 이벤트를 받으면서 장애와 처리 속도를 격리한다. 각 큐에 재시도, DLQ, 보존 기간을 설정할 수 있다.",
+    "why": [
+      "하나의 큐를 경쟁 소비하면 이벤트가 서비스별로 복제되지 않는다",
+      "이벤트를 복제하고 구독자별 처리 실패를 격리한다",
+      "동기 호출로 결합도가 높고 하나가 느려지면 요청이 영향을 받는다",
+      "CDN 무효화는 주문 이벤트 처리 수단이 아니다"
+    ],
+    "criterion": "한 이벤트를 여러 시스템에 배포 → SNS + 구독자별 SQS",
+    "trap": "한 SQS 큐에 소비자를 여러 개 붙이는 것은 팬아웃이 아니라 경쟁 소비에 가깝다.",
+    "source": "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "SNS/SQS",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "F48",
+    "date": "2026-11-20",
+    "topic": "S3",
+    "domain": "비용",
+    "level": "중",
+    "stem": "수백만 개의 리포트가 생성된 뒤 60일 동안은 자주 조회되며, 그 이후에는 조회 빈도가 낮지만 즉시 읽을 수 있어야 한다. 접근 패턴이 예측 가능하다. 가장 비용 효율적인 접근은?",
+    "options": [
+      "모든 객체를 처음부터 Glacier Deep Archive에 저장한다",
+      "60일 뒤 S3 Lifecycle 규칙으로 Standard-IA 전환을 고려하고 최소 보관 기간·검색 비용을 검토한다",
+      "모든 객체를 EBS io2에 저장한다",
+      "매번 전체 버킷을 수동 다운로드해 로컬 디스크에 보관한다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "Lifecycle 규칙으로 객체 연령에 따라 비용 효율적인 스토리지 클래스로 전환할 수 있다. Standard-IA는 즉시 접근 가능하지만 최소 보관 기간 및 검색 요금이 존재한다.",
+    "why": [
+      "초기 빈번한 조회와 즉시 읽기 조건에 맞지 않는다",
+      "예측 가능한 저빈도 접근에 자동 전환을 적용할 수 있다",
+      "EBS는 대규모 객체 아카이브용 대체재가 아니다",
+      "운영 부담과 데이터 내구성·확장성이 비효율적이다"
+    ],
+    "criterion": "예측 가능한 접근 변화 → S3 Lifecycle, 불확실한 패턴 → Intelligent-Tiering 검토",
+    "trap": "Standard-IA 최소 보관 기간과 Glacier 아카이브 복원 시간을 혼동하지 않는다.",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "S3",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "F49",
+    "date": "2026-11-21",
+    "topic": "EC2",
+    "domain": "성능",
+    "level": "중",
+    "stem": "프라이빗 서브넷의 EC2는 인터넷에서 직접 들어오는 연결을 받아서는 안 된다. 하지만 OS 패치 다운로드를 위해 IPv4 인터넷으로 아웃바운드 연결은 필요하다. 어떤 구성이 표준적인가?",
+    "options": [
+      "프라이빗 EC2마다 퍼블릭 IP를 부여한다",
+      "퍼블릭 서브넷의 NAT Gateway를 만들고 프라이빗 서브넷 라우팅 테이블의 0.0.0.0/0을 NAT Gateway로 향하게 한다",
+      "프라이빗 서브넷 라우팅을 IGW로 직접 연결하면 퍼블릭 IP 없이도 인터넷이 된다",
+      "S3 Gateway Endpoint만 생성하면 모든 인터넷 도메인에 접근할 수 있다"
+    ],
+    "correct": [
+      1
+    ],
+    "explain": "NAT Gateway는 프라이빗 IPv4 리소스가 외부로 시작한 트래픽에 대한 응답을 받도록 지원한다. 퍼블릭 NAT Gateway는 퍼블릭 서브넷에 배치하고 인터넷 게이트웨이와 적절한 라우팅이 있어야 한다.",
+    "why": [
+      "퍼블릭 IP는 프라이빗 직접 접근 차단 요구와 배치된다",
+      "프라이빗 서브넷의 인터넷 이그레스 요구를 충족한다",
+      "IGW만으로는 프라이빗 주소의 일반 인터넷 통신을 해결하지 못한다",
+      "S3 Gateway Endpoint는 S3 전용이며 일반 인터넷을 대체하지 않는다"
+    ],
+    "criterion": "IPv4 프라이빗 인터넷 아웃바운드 → NAT Gateway; AWS 서비스 전용 → VPC Endpoint 검토",
+    "trap": "프라이빗 서브넷에서 IGW 라우트만 추가하면 된다는 보기와 NAT를 구분한다.",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "EC2",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  },
+  {
+    "id": "F50",
+    "date": "2026-11-22",
+    "topic": "CloudFront",
+    "domain": "보안",
+    "level": "중",
+    "stem": "유료 회원은 하나의 페이지에서 수십 개의 HLS 세그먼트와 이미지 파일을 다운로드해 동영상을 시청한다. 이 페이지에 포함된 여러 비공개 콘텐츠를 정해진 기간 동안 허용하고 개별 파일마다 URL 서명을 만들고 싶지 않다. 어떤 접근이 유리한가?",
+    "options": [
+      "CloudFront Signed Cookies를 사용하고 원본 접근을 별도로 보호한다",
+      "모든 S3 객체를 Public Read로 공개한다",
+      "모든 콘텐츠를 동일한 퍼블릭 EC2 루트 경로에 복사한다",
+      "DNS TTL을 줄여 사용자 인증을 대체한다"
+    ],
+    "correct": [
+      0
+    ],
+    "explain": "CloudFront Signed Cookies는 여러 제한된 콘텐츠에 대한 사용자 접근을 쿠키 정책으로 허용하는 데 적합하다. Signed URL은 특정 URL별 접근 제어에 유리하다. 원본은 OAC 등으로 보호한다.",
+    "why": [
+      "여러 파일을 묶어 제한 접근시키는 조건에 맞는다",
+      "버킷 공개는 유료 사용자 제어와 충돌한다",
+      "콘텐츠 원본의 퍼블릭 공개는 접근 제어를 우회할 수 있다",
+      "DNS TTL은 접근 인증 정책이 아니다"
+    ],
+    "criterion": "여러 비공개 파일 접근 → Signed Cookies; 개별 파일·링크 제한 → Signed URL",
+    "trap": "OAC는 CloudFront→S3 원본 인증, Signed Cookie는 최종 사용자 접근 제한이다.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html",
+    "provenance": "자체 제작 시나리오 · 실제 기출 아님",
+    "set": 1,
+    "type": "self",
+    "displayTopic": "CloudFront",
+    "sourceTitle": "SAA Study OS 자체 제작 시나리오"
+  }
+]
